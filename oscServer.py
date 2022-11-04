@@ -22,10 +22,10 @@ args = parser.parse_args()
 client = udp_client.SimpleUDPClient(args.ip, args.portClient)
 curMidiArr = np.array([[0,0]])
 curNoteInd = 0
-prevOnsetTime = 0
+# prevOnsetTime = time.time()
 prevNoteWasOff = True
 playing = False
-
+playbackType = 0
 npsArrLength = 10
 curNPSArr = np.zeros((npsArrLength,1))
 curNPSInd = 0
@@ -182,12 +182,17 @@ def processMidi(curMidiArr):
   return outputMidiArr
 
 def playMidi(outputMidiArr):
+  global playing
+
   for i in range(len(outputMidiArr)):
     print("playingmidi")
     print(outputMidiArr[i])
     client.send_message("/max", [outputMidiArr[i][1], outputMidiArr[i][4]])
     time.sleep(outputMidiArr[i][4] / 1000)
 
+
+  client.send_message("/listenmode", 1)
+  playing = False
     # for i in range(len(pattern)):
 #             tempo = 200
 #             duration_mult = 60000 / tempo
@@ -199,22 +204,29 @@ def playMidi(outputMidiArr):
   
 
 
-prevTimeStamp = 0
+prevTimeStamp = time.time()
 def populateArr(fake, pitch, length):
   global curNoteInd
   global curMidiArr
+  global prevTimeStamp
 
   curMidiArr = np.append(curMidiArr, [[pitch, length]], axis = 0)
   print("curMidiArr was appended to:")
   print(curMidiArr)
   curNoteInd = curNoteInd + 1
   
+  curTimeStamp = time.time()
+  print("current time diff:", curTimeStamp-prevTimeStamp)
+  if (curTimeStamp - prevTimeStamp) > 3:
+    # play!
+    startProcessing(0,(curTimeStamp - prevTimeStamp)*1000,playbackType)
+  prevTimeStamp = curTimeStamp
   
-  if playing:
-    curNoteInd = 0
-    print("about to processmidi!")
-    outputMidiArr = processMidi(curMidiArr)
-    playMidi(outputMidiArr)
+  # if playing:
+  #   curNoteInd = 0
+  #   print("about to processmidi!")
+  #   outputMidiArr = processMidi(curMidiArr)
+  #   playMidi(outputMidiArr)
 
 
 def npsCalculator(fake, length):
@@ -244,7 +256,8 @@ def startProcessing(fake, timeSilent, playbackType):
 
   if playbackType == 0:
     print("silence for more than 2 secs")
-    if timeSilent > 2000:
+    if timeSilent > 2000 and not playing:
+      client.send_message("/listenmode", 0)
       playing = True    
       outputMidiArr = processMidi(curMidiArr)
       playMidi(outputMidiArr)
@@ -254,10 +267,12 @@ def startProcessing(fake, timeSilent, playbackType):
     print("silence for more than 2 secs or random")
     randomInterjectionChance = random.random()
     if randomInterjectionChance < 0.01:
+      client.send_message("/listenmode", 0)
       playing = True    
       outputMidiArr = processMidi(curMidiArr)
       playMidi(outputMidiArr)
-    elif timeSilent > 2000:
+    elif timeSilent > 2000 and not playing:
+      client.send_message("/listenmode", 0)
       playing = True    
       outputMidiArr = processMidi(curMidiArr)
       playMidi(outputMidiArr)
@@ -265,11 +280,7 @@ def startProcessing(fake, timeSilent, playbackType):
 
     # check if silence happens for more than 2 secs and if it does then start playback
     # random change of interrupting you
-  elif playbackType == 2:
-    print("manually trigger playback")
-    
 
-    
   else:
     print("not processing")
     playing = False
@@ -280,24 +291,31 @@ def startProcessing(fake, timeSilent, playbackType):
     # print("curmidiarr:", curMidiArr)
     # outputMidiArr = processMidi(curMidiArr)
     # playMidi(outputMidiArr)
+def setPlaybackType(fake,typeNum):
+  global playbackType
+  if typeNum == 0:
+    playbackType = 0
+  elif typeNum == 1:
+    playbackType == 1
 
 def bangplay(fake, bang):
   global playing
-  playing = True    
+  playing = True
+  client.send_message("/listenmode", 0)    
   outputMidiArr = processMidi(curMidiArr)
   playMidi(outputMidiArr)
 
 if __name__ == "__main__":
 
-  prevOnsetTime = time.perf_counter
+  # prevOnsetTime = time.perf_counter
 
 
   dispatcher = dispatcher.Dispatcher()
-  dispatcher.map("/midiinfo", populateArr)
   dispatcher.map("/midinoteandlength",populateArr)
   # dispatcher.map("/test", testOutputtingArrs)
   dispatcher.map("/timeinms", npsCalculator)
-  dispatcher.map("/timeandplaytype", startProcessing)
+  # dispatcher.map("/timeandplaytype", startProcessing)
+  dispatcher.map("/playbackTypeSetter", setPlaybackType)
   dispatcher.map("/playMIDI", bangplay)
 
   # dispatcher.map("playback")
