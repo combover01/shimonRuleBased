@@ -22,14 +22,14 @@ args = parser.parse_args()
 client = udp_client.SimpleUDPClient(args.ip, args.portClient)
 curMidiArr = np.array([[0,0]])
 curNoteInd = 0
-# prevOnsetTime = time.time()
-prevNoteWasOff = True
 playing = False
 playbackType = 0
 npsArrLength = 10
 curNPSArr = np.zeros((npsArrLength,1))
 curNPSInd = 0
-
+prevTimeStamp = time.time()
+experimentalInverting = False
+experimentalRetrograde = True
 
 def pitch_changer(origPitch):
   changedPitch = origPitch
@@ -50,23 +50,6 @@ def pitch_changer(origPitch):
   return changedPitch
 
 
-
-def midiHandler(pitch, length):
-  # populate the midi array here. then it can be sent out after
-
-  print("pitch: {0}, length: {1}".format(pitch, length))
-
-# def sendMIDI(pitch, length):
-#   while True:
-#     client.send_message("/filter", random.random())
-#     print("sent message")
-#     time.sleep(1)
-
-def sendMidiOut(curMidiArr):
-  client.send_message("/mididata", curMidiArr)
-  print("sent midi data chunk over")
-  # this does not work - have to figure out best way to send midi data back to max. should I just populate a midi file?
-
 # def sendTremolo(onOrOff):
 #   if onOrOff == True:
 #     client.send_message("/tremolo", 3)
@@ -86,21 +69,41 @@ def processMidi(curMidiArr):
   randStep = 1/numOfOptions
 
   jump = 0
+  timeJump = 0
   numOfChordsLeft = 0
   majorChordsFlag = False
   minorChordsFlag = False
 
   # chord state: 0 for no chord, 1 for major, 2 for minor
   curChordState = 0
-
+  # curMidiArr = np.delete(curMidiArr,len(curMidiArr)-1,0) # this removes every note that is longer than 2500 ms
+  curMidiArr = np.delete(curMidiArr, np.where((curMidiArr >= 2500))[0], axis=0)
+  
   curmidiarrlength = len(curMidiArr)
   outputMidiArr = np.zeros((curmidiarrlength,8))
 
+  print("FINALCURMIDIARR")
+  print(curMidiArr)
   for noteInd in curMidiArr:
+    retrogradeInd = counter
+    if experimentalRetrograde:
+      print("we are in experimental retrograde")
+      retrogradeInd = len(curMidiArr) - counter - 1
+      print(retrogradeInd)
+      # noteInd = curMidiArr[counter][:]
+      # print(noteInd)
+
     origPitch = noteInd[0] 
     curLength = noteInd[1]
+
+    if experimentalRetrograde:
+      origPitch = curMidiArr[retrogradeInd][0]
+      curLength = curMidiArr[retrogradeInd][1]
+
     if counter > 0:
       jump = origPitch - curMidiArr[counter-1][0]
+      timeJump = curLength - curMidiArr[counter-1][1]
+
 
     if curLength > 1000:
       # turn it into a tremolo note
@@ -151,7 +154,20 @@ def processMidi(curMidiArr):
       if numOfChordsLeft == 0:
         minorChordsFlag = False
     else:
-      curChordState = 0     
+      curChordState = 0    
+
+    if experimentalInverting:
+      print("experimental time")
+      # this is inverting time and frequency
+      curPitch = np.abs(origPitch + (timeJump/10))
+      curLength = np.abs(curLength +(jump * 5))
+
+        
+
+
+      # 
+      # 
+      #  
     
 
 
@@ -183,6 +199,8 @@ def processMidi(curMidiArr):
 
 def playMidi(outputMidiArr):
   global playing
+  global prevTimeStamp
+  global curMidiArr
 
   for i in range(len(outputMidiArr)):
     print("playingmidi")
@@ -190,9 +208,11 @@ def playMidi(outputMidiArr):
     client.send_message("/max", [outputMidiArr[i][1], outputMidiArr[i][4]])
     time.sleep(outputMidiArr[i][4] / 1000)
 
-
   client.send_message("/listenmode", 1)
   playing = False
+  prevTimeStamp = time.time()
+  print("set prevtimestamp to", prevTimeStamp)
+
     # for i in range(len(pattern)):
 #             tempo = 200
 #             duration_mult = 60000 / tempo
@@ -200,19 +220,19 @@ def playMidi(outputMidiArr):
 #             self.client.send_message("/max", [pattern[i][1], dur])
 #             print(pattern[i])
 #             time.sleep(dur / 1000)
-
+  # this clears the array for new input
+  curMidiArr = curMidiArr[[0]]
   
 
 
-prevTimeStamp = time.time()
 def populateArr(fake, pitch, length):
   global curNoteInd
   global curMidiArr
   global prevTimeStamp
 
   curMidiArr = np.append(curMidiArr, [[pitch, length]], axis = 0)
-  print("curMidiArr was appended to:")
-  print(curMidiArr)
+  # print("curMidiArr was appended to:")
+  # print(curMidiArr)
   curNoteInd = curNoteInd + 1
   
   curTimeStamp = time.time()
@@ -220,7 +240,8 @@ def populateArr(fake, pitch, length):
   if (curTimeStamp - prevTimeStamp) > 3:
     # play!
     startProcessing(0,(curTimeStamp - prevTimeStamp)*1000,playbackType)
-  prevTimeStamp = curTimeStamp
+  else:
+    prevTimeStamp = curTimeStamp
   
   # if playing:
   #   curNoteInd = 0
@@ -305,6 +326,25 @@ def bangplay(fake, bang):
   outputMidiArr = processMidi(curMidiArr)
   playMidi(outputMidiArr)
 
+def turnOnExperimentalProcessing(fake, flag):
+  global experimentalRetrograde
+  global experimentalInverting
+  if flag == 1:
+    experimentalInverting = True
+    experimentalRetrograde = False
+  elif flag == 2:
+    experimentalRetrograde = True
+    experimentalInverting = False
+  elif flag == 3:
+    experimentalRetrograde = True
+    experimentalInverting = True
+  else:
+    experimentalInverting = False
+    experimentalRetrograde = False
+  
+  print("experimental mode:", flag)
+
+
 if __name__ == "__main__":
 
   # prevOnsetTime = time.perf_counter
@@ -317,6 +357,7 @@ if __name__ == "__main__":
   # dispatcher.map("/timeandplaytype", startProcessing)
   dispatcher.map("/playbackTypeSetter", setPlaybackType)
   dispatcher.map("/playMIDI", bangplay)
+  dispatcher.map("/experimental", turnOnExperimentalProcessing)
 
   # dispatcher.map("playback")
   # dispatcher.map("/playbacktype", startProcessing)
