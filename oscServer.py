@@ -6,7 +6,7 @@ import numpy as np
 from pythonosc import udp_client
 from pythonosc import dispatcher
 from pythonosc import osc_server
-from threading import Thread
+from threading import Timer, Thread, Event
 np.set_printoptions(suppress=True)
 
 parser = argparse.ArgumentParser()
@@ -30,6 +30,66 @@ curNPSInd = 0
 prevTimeStamp = time.time()
 experimentalInverting = False
 experimentalRetrograde = True
+
+
+
+# source for resettable timer: https://code.activestate.com/recipes/577407-resettable-timer-class-a-little-enhancement-from-p/
+def TimerReset(*args, **kwargs):
+    """ Global function for Timer """
+    return _TimerReset(*args, **kwargs)
+
+
+class _TimerReset(Thread):
+    """Call a function after a specified number of seconds:
+
+    t = TimerReset(30.0, f, args=[], kwargs={})
+    t.start()
+    t.cancel() # stop the timer's action if it's still waiting
+    """
+
+    def __init__(self, interval, function, args=[], kwargs={}):
+        Thread.__init__(self)
+        self.interval = interval
+        self.function = function
+        self.args = args
+        self.kwargs = kwargs
+        self.finished = Event()
+        self.resetted = True
+
+    def cancel(self):
+        """Stop the timer if it hasn't finished yet"""
+        self.finished.set()
+
+    def run(self):
+        print ("Time: %s - timer running..." % time.asctime())
+
+        while self.resetted:
+            print ("Time: %s - timer waiting for timeout in %.2f..." % (time.asctime(), self.interval))
+            self.resetted = False
+            self.finished.wait(self.interval)
+
+        if not self.finished.isSet():
+            self.function(*self.args, **self.kwargs)
+        self.finished.set()
+        print ("Time: %s - timer finished!" % time.asctime())
+        
+        self.reset()
+
+
+    def reset(self, interval=None):
+        """ Reset the timer """
+
+        if interval:
+            print ("Time: %s - timer resetting to %.2f..." % (time.asctime(), interval))
+            self.interval = interval
+        else:
+            print ("Time: %s - timer resetting..." % time.asctime())
+
+        self.resetted = True
+        self.finished.set()
+        self.finished.clear()
+
+
 
 def pitch_changer(origPitch):
   changedPitch = origPitch
@@ -222,8 +282,20 @@ def playMidi(outputMidiArr):
 #             time.sleep(dur / 1000)
   # this clears the array for new input
   curMidiArr = curMidiArr[[0]]
+
+  # tim = TimerReset(300, timerThread)
+  # tim.cancel()
+  # tim = TimerReset(300, timerThread)
+  # tim.cancel()
+  # tim.start()
+  t.cancel()
+  newTimer()
+  t.start()
+    # tim.start()
   
 
+def hello():
+  print ("Time: %s - hello, world" % time.asctime())
 
 def populateArr(fake, pitch, length):
   global curNoteInd
@@ -234,20 +306,51 @@ def populateArr(fake, pitch, length):
   # print("curMidiArr was appended to:")
   # print(curMidiArr)
   curNoteInd = curNoteInd + 1
+
+  print("populatedarr at index", curNoteInd - 1)
   
-  curTimeStamp = time.time()
-  print("current time diff:", curTimeStamp-prevTimeStamp)
-  if (curTimeStamp - prevTimeStamp) > 3:
-    # play!
-    startProcessing(0,(curTimeStamp - prevTimeStamp)*1000,playbackType)
-  else:
-    prevTimeStamp = curTimeStamp
+  # print("trying to call t")
+  # print(t)
+  # # if t:
+  # t.cancel()
+  # t.start()
+
+  # if tim:
+  # tim.reset()
+  print ("Time: %s - start..." % time.asctime())
+  # tim = TimerReset(3, timerThread)
+  # tim.start()
+  # print ("Time: %s - sleeping for 3..." % time.asctime())
+  # time.sleep (3)
+  print("resetting to 3 secs")
+  t.reset(3)
+  # print()
+  # print ("Time: %s - done with wait" % time.asctime())
+  # time.sleep (10)
+  # print ("Time: %s - end..." % time.asctime())
+
+  # curTimeStamp = time.time()
+  # print("current time diff:", curTimeStamp-prevTimeStamp)
+  # if (curTimeStamp - prevTimeStamp) > 3:
+  #   # play!
+  #   startProcessing(0,(curTimeStamp - prevTimeStamp)*1000,playbackType)
+  # else:
+  #   prevTimeStamp = curTimeStamp
   
   # if playing:
   #   curNoteInd = 0
   #   print("about to processmidi!")
   #   outputMidiArr = processMidi(curMidiArr)
   #   playMidi(outputMidiArr)
+
+
+def timerThread():
+  # print("restarting timer")
+  # time.sleep(waitTime)
+  print("calling startprocessing")
+  startProcessing(0,3*1000,playbackType)
+# t = Timer(3.0, timerThread)
+
 
 
 def npsCalculator(fake, length):
@@ -261,8 +364,8 @@ def npsCalculator(fake, length):
   # print("CURNPS")
   curNPSArr[curNPSInd] = curNPS
   averageNPS = np.average(curNPSArr)
-  print(curNPS)
-  print(averageNPS)
+  # print(curNPS)
+  # print(averageNPS)
 
   curNPSInd = np.mod(curNPSInd + 1, npsArrLength)
 
@@ -276,7 +379,7 @@ def startProcessing(fake, timeSilent, playbackType):
   print("input to startprocessing:",  timeSilent, playbackType)
 
   if playbackType == 0:
-    print("silence for more than 2 secs")
+    # print("silence for more than 2 secs")
     if timeSilent > 2000 and not playing:
       client.send_message("/listenmode", 0)
       playing = True    
@@ -285,7 +388,7 @@ def startProcessing(fake, timeSilent, playbackType):
 
     # check if silence happens for more than 2 secs and if it does then start playback
   elif playbackType == 1:
-    print("silence for more than 2 secs or random")
+    # print("silence for more than 2 secs or random")
     randomInterjectionChance = random.random()
     if randomInterjectionChance < 0.01:
       client.send_message("/listenmode", 0)
@@ -344,9 +447,13 @@ def turnOnExperimentalProcessing(fake, flag):
   
   print("experimental mode:", flag)
 
-
+def newTimer():
+  global t 
+  t = TimerReset(300, timerThread)
+newTimer()
 if __name__ == "__main__":
 
+  # global tim
   # prevOnsetTime = time.perf_counter
 
 
@@ -362,7 +469,9 @@ if __name__ == "__main__":
   # dispatcher.map("playback")
   # dispatcher.map("/playbacktype", startProcessing)
 
-
+  t.cancel()
+  newTimer()
+  t.start()
 
 
   server = osc_server.ThreadingOSCUDPServer(

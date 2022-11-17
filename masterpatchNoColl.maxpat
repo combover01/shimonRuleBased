@@ -10,7 +10,7 @@
 		}
 ,
 		"classnamespace" : "box",
-		"rect" : [ 754.0, 87.0, 652.0, 779.0 ],
+		"rect" : [ 34.0, 87.0, 1372.0, 779.0 ],
 		"bglocked" : 0,
 		"openinpresentation" : 0,
 		"default_fontsize" : 12.0,
@@ -39,6 +39,39 @@
 		"subpatcher_template" : "",
 		"assistshowspatchername" : 0,
 		"boxes" : [ 			{
+				"box" : 				{
+					"id" : "obj-11",
+					"maxclass" : "newobj",
+					"numinlets" : 1,
+					"numoutlets" : 0,
+					"patching_rect" : [ 1237.75, 732.0, 171.0, 22.0 ],
+					"text" : "udpsend 143.215.121.27 5004"
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"id" : "obj-10",
+					"maxclass" : "newobj",
+					"numinlets" : 1,
+					"numoutlets" : 0,
+					"patching_rect" : [ 363.5, 830.0, 171.0, 22.0 ],
+					"text" : "udpsend 143.215.121.27 5004"
+				}
+
+			}
+, 			{
+				"box" : 				{
+					"id" : "obj-1",
+					"maxclass" : "newobj",
+					"numinlets" : 1,
+					"numoutlets" : 0,
+					"patching_rect" : [ 99.5, 852.0, 171.0, 22.0 ],
+					"text" : "udpsend 143.215.121.27 5004"
+				}
+
+			}
+, 			{
 				"box" : 				{
 					"id" : "obj-46",
 					"linecount" : 5,
@@ -371,7 +404,7 @@
 					"maxclass" : "comment",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 1250.0, 885.0, 150.0, 100.0 ],
+					"patching_rect" : [ 1346.0, 938.0, 150.0, 100.0 ],
 					"text" : "bypass coll object w python ...\nfigure out why long notes keep playing (get rid in python)\nmore musical manipulation"
 				}
 
@@ -1147,7 +1180,7 @@
 					"maxclass" : "comment",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 1271.25, 752.0, 305.5, 100.0 ],
+					"patching_rect" : [ 1367.25, 805.0, 305.5, 100.0 ],
 					"text" : "bonk object, tcp? to check if we lose packages\nrhythm detection and rules\nturn taking rules - decide when phrase ends based on note lengths. read about phrasing rules.. \nconfusion (noises) cause interruption (as example)\nlook into librosa for onsets and stuff\npitch and scale analysis?"
 				}
 
@@ -1351,7 +1384,7 @@
 					"maxclass" : "comment",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 1114.0, 756.0, 150.0, 20.0 ],
+					"patching_rect" : [ 1210.0, 809.0, 150.0, 20.0 ],
 					"text" : "turn on/off tremolo here"
 				}
 
@@ -1665,7 +1698,7 @@
 					"numinlets" : 2,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 1212.5, 794.0, 29.5, 22.0 ],
+					"patching_rect" : [ 1308.5, 847.0, 29.5, 22.0 ],
 					"text" : "4"
 				}
 
@@ -1677,7 +1710,7 @@
 					"numinlets" : 2,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 1167.5, 794.0, 29.5, 22.0 ],
+					"patching_rect" : [ 1263.5, 847.0, 29.5, 22.0 ],
 					"text" : "3"
 				}
 
@@ -1689,7 +1722,7 @@
 					"numinlets" : 2,
 					"numoutlets" : 1,
 					"outlettype" : [ "" ],
-					"patching_rect" : [ 1114.0, 794.0, 29.5, 22.0 ],
+					"patching_rect" : [ 1210.0, 847.0, 29.5, 22.0 ],
 					"text" : "1"
 				}
 
@@ -1700,7 +1733,7 @@
 					"maxclass" : "newobj",
 					"numinlets" : 1,
 					"numoutlets" : 0,
-					"patching_rect" : [ 1114.0, 830.0, 93.0, 22.0 ],
+					"patching_rect" : [ 1210.0, 883.0, 93.0, 22.0 ],
 					"text" : "s rjsstrikermode"
 				}
 
@@ -1803,7 +1836,16 @@
 			}
 , 			{
 				"patchline" : 				{
+					"destination" : [ "obj-1", 0 ],
+					"order" : 0,
+					"source" : [ "obj-106", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
 					"destination" : [ "obj-100", 0 ],
+					"order" : 1,
 					"source" : [ "obj-106", 0 ]
 				}
 
@@ -1811,6 +1853,15 @@
 , 			{
 				"patchline" : 				{
 					"destination" : [ "obj-109", 0 ],
+					"order" : 1,
+					"source" : [ "obj-108", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
+					"destination" : [ "obj-11", 0 ],
+					"order" : 0,
 					"source" : [ "obj-108", 0 ]
 				}
 
@@ -2098,7 +2149,16 @@
 			}
 , 			{
 				"patchline" : 				{
+					"destination" : [ "obj-10", 0 ],
+					"order" : 0,
+					"source" : [ "obj-154", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
 					"destination" : [ "obj-12", 0 ],
+					"order" : 1,
 					"source" : [ "obj-154", 0 ]
 				}
 
@@ -2173,6 +2233,15 @@
 , 			{
 				"patchline" : 				{
 					"destination" : [ "obj-109", 0 ],
+					"order" : 1,
+					"source" : [ "obj-172", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
+					"destination" : [ "obj-11", 0 ],
+					"order" : 0,
 					"source" : [ "obj-172", 0 ]
 				}
 
@@ -2255,6 +2324,15 @@
 , 			{
 				"patchline" : 				{
 					"destination" : [ "obj-109", 0 ],
+					"order" : 1,
+					"source" : [ "obj-26", 0 ]
+				}
+
+			}
+, 			{
+				"patchline" : 				{
+					"destination" : [ "obj-11", 0 ],
+					"order" : 0,
 					"source" : [ "obj-26", 0 ]
 				}
 
@@ -2895,8 +2973,12 @@
 		"styles" : [ 			{
 				"name" : "jfc-style",
 				"default" : 				{
-					"textcolor_inverse" : [ 0.0, 0.0, 0.0, 1.0 ],
+					"locked_bgcolor" : [ 0.996078431372549, 0.996078431372549, 0.996078431372549, 1.0 ],
+					"stripecolor" : [ 0.811764705882353, 0.811764705882353, 0.811764705882353, 1.0 ],
+					"color" : [ 0.317647058823529, 0.305882352941176, 0.996078431372549, 1.0 ],
+					"bgcolor" : [ 0.901960784313726, 0.901960784313726, 0.901960784313726, 1.0 ],
 					"editing_bgcolor" : [ 0.996078431372549, 0.996078431372549, 0.996078431372549, 1.0 ],
+					"textcolor_inverse" : [ 0.0, 0.0, 0.0, 1.0 ],
 					"bgfillcolor" : 					{
 						"type" : "color",
 						"color" : [ 0.737254901960784, 0.737254901960784, 0.737254901960784, 1.0 ],
@@ -2907,13 +2989,9 @@
 						"autogradient" : 0.0
 					}
 ,
-					"color" : [ 0.317647058823529, 0.305882352941176, 0.996078431372549, 1.0 ],
 					"selectioncolor" : [ 0.219607843137255, 0.996078431372549, 0.345098039215686, 1.0 ],
-					"bgcolor" : [ 0.901960784313726, 0.901960784313726, 0.901960784313726, 1.0 ],
 					"textcolor" : [ 0.0, 0.0, 0.0, 1.0 ],
-					"locked_bgcolor" : [ 0.996078431372549, 0.996078431372549, 0.996078431372549, 1.0 ],
-					"fontsize" : [ 11.0 ],
-					"stripecolor" : [ 0.811764705882353, 0.811764705882353, 0.811764705882353, 1.0 ]
+					"fontsize" : [ 11.0 ]
 				}
 ,
 				"parentstyle" : "",
