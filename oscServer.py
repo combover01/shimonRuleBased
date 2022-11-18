@@ -141,7 +141,7 @@ def processMidi(curMidiArr):
   curMidiArr = np.delete(curMidiArr, np.where((curMidiArr == 0))[0], axis=0)
 
   # removes every note that is shorter than 75 ms (hopefully removing blips)
-  print("curmidiarr:", curMidiArr[0][1::2])
+  # print("curmidiarr:", curMidiArr[0][1::2])
   # curMidiArr = np.delete(curMidiArr, np.where((curMidiArr[1] < 75))[0], axis=0)
 
   
@@ -183,6 +183,13 @@ def processMidi(curMidiArr):
       origPitch = origPitch + 12
       print("transposed up to:", origPitch)
     
+    if experimentalInverting:
+      print("experimental time")
+      # this is inverting time and frequency
+      origPitch = np.abs(origPitch + (timeJump/15))
+      curLength = np.abs(curLength +(jump * 5))
+
+
     # tremolo controls
     if curLength > 1000:
       # turn it into a tremolo note
@@ -242,11 +249,7 @@ def processMidi(curMidiArr):
     else:
       curChordState = 0
 
-    if experimentalInverting:
-      print("experimental time")
-      # this is inverting time and frequency
-      curPitch = np.abs(origPitch + (timeJump/10))
-      curLength = np.abs(curLength +(jump * 5))
+
 
       
 
@@ -271,7 +274,7 @@ def processMidi(curMidiArr):
     outputMidiArr[counter][6] = int(curTremoloState)
     outputMidiArr[counter][7] = int(curChordState)
     counter = counter + 1
-    print("end of loop:",outputMidiArr)
+    # print("end of loop:",outputMidiArr)
 
 
   print(outputMidiArr)
@@ -323,8 +326,8 @@ def populateArr(fake, pitch, length):
 
 
   print("populatedarr at index", curNoteInd - 1)
-  print("resetting to 3 secs")
-  t.reset(3)
+  print("resetting to 2 secs")
+  t.reset(2)
   
   # if the random chance is on, then interject 20% of the time (may need to be adjusted)
 
