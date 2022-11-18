@@ -12,7 +12,7 @@ np.set_printoptions(suppress=True)
 parser = argparse.ArgumentParser()
 labIp = "143.215.124.213"
 homeIp = "192.168.0.108"
-curIp = "10.0.0.228"
+curIp = "143.215.113.215"
 
 parser.add_argument("--ip", default=curIp, help="The ip to listen on")
 parser.add_argument("--portServer", type=int, default=5004, help="The port to listen for max on")
@@ -30,8 +30,7 @@ curNPSInd = 0
 prevTimeStamp = time.time()
 experimentalInverting = False
 experimentalRetrograde = True
-
-
+quantizeFlag = False
 
 # source for resettable timer: https://code.activestate.com/recipes/577407-resettable-timer-class-a-little-enhancement-from-p/
 def TimerReset(*args, **kwargs):
@@ -120,6 +119,7 @@ def pitch_changer(origPitch):
 
 def processMidi(curMidiArr):
   print("in processMIDI")
+  global quantizeFlag
   counter = 0
   transposeFlag = False
   curTremoloState = False
@@ -138,12 +138,21 @@ def processMidi(curMidiArr):
   curChordState = 0
   # curMidiArr = np.delete(curMidiArr,len(curMidiArr)-1,0) # this removes every note that is longer than 2500 ms
   curMidiArr = np.delete(curMidiArr, np.where((curMidiArr >= 2500))[0], axis=0)
+  curMidiArr = np.delete(curMidiArr, np.where((curMidiArr == 0))[0], axis=0)
+
+  # removes every note that is shorter than 75 ms (hopefully removing blips)
+  print("curmidiarr:", curMidiArr[0][1::2])
+  # curMidiArr = np.delete(curMidiArr, np.where((curMidiArr[1] < 75))[0], axis=0)
+
   
+
+  curMidiArr = curMidiArr[:][1:]
+  print("FINALCURMIDIARR")
+  print(curMidiArr)
+  print(len(curMidiArr))
   curmidiarrlength = len(curMidiArr)
   outputMidiArr = np.zeros((curmidiarrlength,8))
 
-  print("FINALCURMIDIARR")
-  print(curMidiArr)
   for noteInd in curMidiArr:
     retrogradeInd = counter
     if experimentalRetrograde:
@@ -155,6 +164,8 @@ def processMidi(curMidiArr):
 
     origPitch = noteInd[0] 
     curLength = noteInd[1]
+    # print("origPitch: ", origPitch)
+
 
     if experimentalRetrograde:
       origPitch = curMidiArr[retrogradeInd][0]
@@ -164,7 +175,15 @@ def processMidi(curMidiArr):
       jump = origPitch - curMidiArr[counter-1][0]
       timeJump = curLength - curMidiArr[counter-1][1]
 
-
+    # transpose notes that are above and below the regular range of a piano
+    while origPitch > 100:
+      origPitch = origPitch - 12
+      print("transposed down to:", origPitch)
+    while origPitch < 30:
+      origPitch = origPitch + 12
+      print("transposed up to:", origPitch)
+    
+    # tremolo controls
     if curLength > 1000:
       # turn it into a tremolo note
       curTremoloState = True
@@ -190,6 +209,13 @@ def processMidi(curMidiArr):
     else:
       curPitch = origPitch
 
+    # QUANTIZING SETTINGS!
+    if quantizeFlag:
+      # (closest to 125 ms multiples)
+      rounded = 125 * round(curLength / 125)
+      curLength = rounded
+      print("rounded:", rounded)
+
     if abs(jump) == 4:
       # this is a major jump. the next random number between 1 and 5 notes will be major chords with the played note being the root (this is easiest so far, in the future i can implement a chord detection process here)
       chance = random.random()
@@ -214,7 +240,7 @@ def processMidi(curMidiArr):
       if numOfChordsLeft == 0:
         minorChordsFlag = False
     else:
-      curChordState = 0    
+      curChordState = 0
 
     if experimentalInverting:
       print("experimental time")
@@ -222,13 +248,7 @@ def processMidi(curMidiArr):
       curPitch = np.abs(origPitch + (timeJump/10))
       curLength = np.abs(curLength +(jump * 5))
 
-        
-
-
-      # 
-      # 
-      #  
-    
+      
 
 
 # next friday with a saxophone, interaction (can be just repeating if needed)
@@ -238,7 +258,7 @@ def processMidi(curMidiArr):
 # bring back ideas at unexpected times - memory. also repeating lines
 
 
-
+    # if counter < len(curMidiArr)-1:
 
     # populate output array. [pitch, length, tremolo]
     outputMidiArr[counter][0] = counter
@@ -251,6 +271,7 @@ def processMidi(curMidiArr):
     outputMidiArr[counter][6] = int(curTremoloState)
     outputMidiArr[counter][7] = int(curChordState)
     counter = counter + 1
+    print("end of loop:",outputMidiArr)
 
 
   print(outputMidiArr)
@@ -273,83 +294,44 @@ def playMidi(outputMidiArr):
   prevTimeStamp = time.time()
   print("set prevtimestamp to", prevTimeStamp)
 
-    # for i in range(len(pattern)):
-#             tempo = 200
-#             duration_mult = 60000 / tempo
-#             dur = pattern[i][0] * duration_mult
-#             self.client.send_message("/max", [pattern[i][1], dur])
-#             print(pattern[i])
-#             time.sleep(dur / 1000)
-  # this clears the array for new input
+
   curMidiArr = curMidiArr[[0]]
 
-  # tim = TimerReset(300, timerThread)
-  # tim.cancel()
-  # tim = TimerReset(300, timerThread)
-  # tim.cancel()
-  # tim.start()
+
   t.cancel()
   newTimer()
   t.start()
-    # tim.start()
-  
-
-def hello():
-  print ("Time: %s - hello, world" % time.asctime())
 
 def populateArr(fake, pitch, length):
   global curNoteInd
   global curMidiArr
   global prevTimeStamp
+  global playbackType
 
   curMidiArr = np.append(curMidiArr, [[pitch, length]], axis = 0)
   # print("curMidiArr was appended to:")
   # print(curMidiArr)
   curNoteInd = curNoteInd + 1
 
-  print("populatedarr at index", curNoteInd - 1)
-  
-  # print("trying to call t")
-  # print(t)
-  # # if t:
-  # t.cancel()
-  # t.start()
 
-  # if tim:
-  # tim.reset()
-  print ("Time: %s - start..." % time.asctime())
-  # tim = TimerReset(3, timerThread)
-  # tim.start()
-  # print ("Time: %s - sleeping for 3..." % time.asctime())
-  # time.sleep (3)
+  if playbackType == 1:
+    print("playback type is 1")
+    randomInterjectionChance = random.random()
+    if randomInterjectionChance <= 0.05:
+      print("randomly interrupting now!")
+      bangplay(0,0)
+
+
+  print("populatedarr at index", curNoteInd - 1)
   print("resetting to 3 secs")
   t.reset(3)
-  # print()
-  # print ("Time: %s - done with wait" % time.asctime())
-  # time.sleep (10)
-  # print ("Time: %s - end..." % time.asctime())
-
-  # curTimeStamp = time.time()
-  # print("current time diff:", curTimeStamp-prevTimeStamp)
-  # if (curTimeStamp - prevTimeStamp) > 3:
-  #   # play!
-  #   startProcessing(0,(curTimeStamp - prevTimeStamp)*1000,playbackType)
-  # else:
-  #   prevTimeStamp = curTimeStamp
   
-  # if playing:
-  #   curNoteInd = 0
-  #   print("about to processmidi!")
-  #   outputMidiArr = processMidi(curMidiArr)
-  #   playMidi(outputMidiArr)
+  # if the random chance is on, then interject 20% of the time (may need to be adjusted)
 
 
 def timerThread():
-  # print("restarting timer")
-  # time.sleep(waitTime)
-  print("calling startprocessing")
+  print("calling startprocessing at end of timer")
   startProcessing(0,3*1000,playbackType)
-# t = Timer(3.0, timerThread)
 
 
 
@@ -420,7 +402,7 @@ def setPlaybackType(fake,typeNum):
   if typeNum == 0:
     playbackType = 0
   elif typeNum == 1:
-    playbackType == 1
+    playbackType = 1
 
 def bangplay(fake, bang):
   global playing
@@ -447,6 +429,13 @@ def turnOnExperimentalProcessing(fake, flag):
   
   print("experimental mode:", flag)
 
+def turnOnQuantizer(fake, flag):
+  global quantizeFlag
+  if flag == 1:
+    quantizeFlag = True
+  else:
+    quantizeFlag = False
+
 def newTimer():
   global t 
   t = TimerReset(300, timerThread)
@@ -465,6 +454,7 @@ if __name__ == "__main__":
   dispatcher.map("/playbackTypeSetter", setPlaybackType)
   dispatcher.map("/playMIDI", bangplay)
   dispatcher.map("/experimental", turnOnExperimentalProcessing)
+  dispatcher.map("/quantize", turnOnQuantizer)
 
   # dispatcher.map("playback")
   # dispatcher.map("/playbacktype", startProcessing)
