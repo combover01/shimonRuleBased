@@ -23,14 +23,14 @@ client = udp_client.SimpleUDPClient(args.ip, args.portClient)
 curMidiArr = np.array([[0,0]])
 curNoteInd = 0
 playing = False
-playbackType = 0
+playbackType = 1
 npsArrLength = 10
 curNPSArr = np.zeros((npsArrLength,1))
 curNPSInd = 0
 prevTimeStamp = time.time()
 experimentalInverting = False
 experimentalRetrograde = True
-quantizeFlag = False
+quantizeFlag = True
 
 # source for resettable timer: https://code.activestate.com/recipes/577407-resettable-timer-class-a-little-enhancement-from-p/
 def TimerReset(*args, **kwargs):
@@ -151,7 +151,8 @@ def processMidi(curMidiArr):
   print(curMidiArr)
   print(len(curMidiArr))
   curmidiarrlength = len(curMidiArr)
-  outputMidiArr = np.zeros((curmidiarrlength,8))
+  outputMidiArr = np.zeros((1,8))
+  print("beginnign output:", outputMidiArr)
 
   for noteInd in curMidiArr:
     retrogradeInd = counter
@@ -261,24 +262,16 @@ def processMidi(curMidiArr):
 # bring back ideas at unexpected times - memory. also repeating lines
 
 
-    # if counter < len(curMidiArr)-1:
-
     # populate output array. [pitch, length, tremolo]
-    outputMidiArr[counter][0] = counter
-    outputMidiArr[counter][1] = int(curPitch)
-    outputMidiArr[counter][2] = 127 #velocity
-    outputMidiArr[counter][3] = 1 #channel
-    outputMidiArr[counter][4] = curLength
-    outputMidiArr[counter][5] = curLength
-
-    outputMidiArr[counter][6] = int(curTremoloState)
-    outputMidiArr[counter][7] = int(curChordState)
+    row = np.array([[counter, int(curPitch), 127, 1, curLength, curLength, int(curTremoloState), int(curChordState)]])
+    outputMidiArr = np.append(outputMidiArr, row, axis=0)
     counter = counter + 1
-    # print("end of loop:",outputMidiArr)
 
-
+  
   print(outputMidiArr)
-
+  # remove the row of 0s at the beginning of the output array
+  outputMidiArr = outputMidiArr[1:]
+  print(outputMidiArr)
   return outputMidiArr
 
 def playMidi(outputMidiArr):
