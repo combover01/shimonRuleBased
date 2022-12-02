@@ -2,17 +2,19 @@ import argparse
 import random
 import time
 import numpy as np
+import matplotlib.pyplot as plt
 
 from pythonosc import udp_client
 from pythonosc import dispatcher
 from pythonosc import osc_server
 from threading import Timer, Thread, Event
 np.set_printoptions(suppress=True)
+plt.switch_backend('Agg') 
 
 parser = argparse.ArgumentParser()
 labIp = "143.215.124.213"
 homeIp = "192.168.0.108"
-curIp = "143.215.113.215"
+curIp = "143.215.113.198"
 
 parser.add_argument("--ip", default=curIp, help="The ip to listen on")
 parser.add_argument("--portServer", type=int, default=5004, help="The port to listen for max on")
@@ -36,16 +38,12 @@ quantizeFlag = True
 def TimerReset(*args, **kwargs):
     """ Global function for Timer """
     return _TimerReset(*args, **kwargs)
-
-
 class _TimerReset(Thread):
     """Call a function after a specified number of seconds:
-
     t = TimerReset(30.0, f, args=[], kwargs={})
     t.start()
     t.cancel() # stop the timer's action if it's still waiting
     """
-
     def __init__(self, interval, function, args=[], kwargs={}):
         Thread.__init__(self)
         self.interval = interval
@@ -54,40 +52,30 @@ class _TimerReset(Thread):
         self.kwargs = kwargs
         self.finished = Event()
         self.resetted = True
-
     def cancel(self):
         """Stop the timer if it hasn't finished yet"""
         self.finished.set()
-
     def run(self):
         print ("Time: %s - timer running..." % time.asctime())
-
         while self.resetted:
             print ("Time: %s - timer waiting for timeout in %.2f..." % (time.asctime(), self.interval))
             self.resetted = False
             self.finished.wait(self.interval)
-
         if not self.finished.isSet():
             self.function(*self.args, **self.kwargs)
         self.finished.set()
         print ("Time: %s - timer finished!" % time.asctime())
-        
         self.reset()
-
-
     def reset(self, interval=None):
         """ Reset the timer """
-
         if interval:
             print ("Time: %s - timer resetting to %.2f..." % (time.asctime(), interval))
             self.interval = interval
         else:
             print ("Time: %s - timer resetting..." % time.asctime())
-
         self.resetted = True
         self.finished.set()
         self.finished.clear()
-
 
 
 def pitch_changer(origPitch):
@@ -150,23 +138,61 @@ def processMidi(curMidiArr):
   print("FINALCURMIDIARR")
   print(curMidiArr)
   print(len(curMidiArr))
+  print(curMidiArr[:,0])
+  print(curMidiArr[:,1])
   curmidiarrlength = len(curMidiArr)
-  outputMidiArr = np.zeros((1,8))
+
+  # PLOTTING THE CONTOUR
+  # this is a subplot to be more compatible with multithreading
+  fig, ax = plt.subplots()
+  timeline = np.zeros(len(curMidiArr[:,1]))
+  # populate the "timeline" array here. this converts lengths of notes to a theoretical timeline
+  if len(curMidiArr[:,1]) > 1:
+    for time in range(1, len(curMidiArr[:,1])):
+      timeline[time] = curMidiArr[time,1] + timeline[time-1]
+      # print(timeline)
+  ax.plot(timeline, curMidiArr[:,0])
+  ax.set_xlabel('time in ms')
+  ax.set_ylabel('midi note number')
+  ax.set_title("Contour of input melody")
+  plt.savefig('origcontour.png')
+
+  # find the peak and see if there are surroundings that are lower and if so how much lower?
+  # CREATE THE SAVED ARRAY, give it a max length and then trim it down later
+  repeatLaterArr = np.zeros([7, 2])
+  noteslist = curMidiArr[:,0]
+  if len(noteslist) > 0: 
+    peakInd = np.argmax(noteslist)
+    if peakInd > 1:
+      if peakInd > 3:
+        lengthOfLine = np.random.randint(7)
+      else:
+        lengthOfLine = np.random.randint(peakInd * 2)
+      print(lengthOfLine)
+      startInd = peakInd - int(np.ceil(lengthOfLine / 2))
+      print(startInd)
+      repeatLaterArr = noteslist[startInd:startInd+lengthOfLine]
+
+  print(repeatLaterArr)
+
+
+  outputMidiArr = np.zeros((1,4))
+  print("beginnign input:", curMidiArr)
   print("beginnign output:", outputMidiArr)
 
+  # currently thinking of ways to make the output not dependent on length of input. 
+  # we could just make "row" into "rows" and then trigger adding more rows if the rules apply there...
   for noteInd in curMidiArr:
+    moreRows = np.zeros([4])
     retrogradeInd = counter
     if experimentalRetrograde:
       print("we are in experimental retrograde")
       retrogradeInd = len(curMidiArr) - counter - 1
       print(retrogradeInd)
-      # noteInd = curMidiArr[counter][:]
-      # print(noteInd)
 
     origPitch = noteInd[0] 
     curLength = noteInd[1]
     # print("origPitch: ", origPitch)
-
 
     if experimentalRetrograde:
       origPitch = curMidiArr[retrogradeInd][0]
@@ -176,13 +202,7 @@ def processMidi(curMidiArr):
       jump = origPitch - curMidiArr[counter-1][0]
       timeJump = curLength - curMidiArr[counter-1][1]
 
-    # transpose notes that are above and below the regular range of a piano
-    while origPitch > 100:
-      origPitch = origPitch - 12
-      print("transposed down to:", origPitch)
-    while origPitch < 30:
-      origPitch = origPitch + 12
-      print("transposed up to:", origPitch)
+
     
     if experimentalInverting:
       print("experimental time")
@@ -190,6 +210,13 @@ def processMidi(curMidiArr):
       origPitch = np.abs(origPitch + (timeJump/15))
       curLength = np.abs(curLength +(jump * 5))
 
+    # transpose notes that are above and below the regular range of a piano
+    while origPitch > 100:
+      origPitch = origPitch - 12
+      print("transposed down to:", origPitch)
+    while origPitch < 30:
+      origPitch = origPitch + 12
+      print("transposed up to:", origPitch)
 
     # tremolo controls
     if curLength > 1000:
@@ -251,10 +278,6 @@ def processMidi(curMidiArr):
       curChordState = 0
 
 
-
-      
-
-
 # next friday with a saxophone, interaction (can be just repeating if needed)
 # second task: sophositicated changing algorithms - using any of the three paradigms
 # quantization option (optional) - is there a quantize object i could use in max without predetermined tempo?
@@ -263,16 +286,21 @@ def processMidi(curMidiArr):
 
 
     # populate output array. [pitch, length, tremolo]
-    row = np.array([[counter, int(curPitch), 127, 1, curLength, curLength, int(curTremoloState), int(curChordState)]])
-    outputMidiArr = np.append(outputMidiArr, row, axis=0)
+    row = np.array([[int(curPitch), curLength, int(curTremoloState), int(curChordState)]])
+    print(row)
+    print([moreRows])
+    rows = np.append(row, [moreRows], axis = 0)
+    print(rows)
+    outputMidiArr = np.append(outputMidiArr, rows, axis=0)
+    # print("output at end of loop:", outputMidiArr)
     counter = counter + 1
 
-  
-  print(outputMidiArr)
-  # remove the row of 0s at the beginning of the output array
-  outputMidiArr = outputMidiArr[1:]
-  print(outputMidiArr)
+  # remove rows with zero length since moreRows may be empty and the first row is empty
+  outputMidiArr = np.delete(outputMidiArr, np.where((outputMidiArr[:,1] == 0))[0], axis=0)
+  print("final outputMidiArr:", outputMidiArr)
   return outputMidiArr
+
+
 
 def playMidi(outputMidiArr):
   global playing
@@ -282,8 +310,8 @@ def playMidi(outputMidiArr):
   for i in range(len(outputMidiArr)):
     print("playingmidi")
     print(outputMidiArr[i])
-    client.send_message("/max", [outputMidiArr[i][1], outputMidiArr[i][4]])
-    time.sleep(outputMidiArr[i][4] / 1000)
+    client.send_message("/max", [outputMidiArr[i][0], outputMidiArr[i][1]])
+    time.sleep(outputMidiArr[i][1] / 1000)
 
   client.send_message("/listenmode", 1)
   playing = False
