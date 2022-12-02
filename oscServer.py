@@ -161,20 +161,31 @@ def processMidi(curMidiArr):
   # CREATE THE SAVED ARRAY, give it a max length and then trim it down later
   repeatLaterArr = np.zeros([7, 2])
   noteslist = curMidiArr[:,0]
+  lengthslist = curMidiArr[:,1]
+
   if len(noteslist) > 0: 
     peakInd = np.argmax(noteslist)
     if peakInd > 1:
       if peakInd > 3:
-        lengthOfLine = np.random.randint(7)
+        lengthOfLine = np.random.randint(1,7)
       else:
-        lengthOfLine = np.random.randint(peakInd * 2)
+        lengthOfLine = np.random.randint(1, peakInd * 2)
       print(lengthOfLine)
       startInd = peakInd - int(np.ceil(lengthOfLine / 2))
       print(startInd)
-      repeatLaterArr = noteslist[startInd:startInd+lengthOfLine]
 
-  print(repeatLaterArr)
+      for i in range(0,lengthOfLine):
+        if not (startInd + lengthOfLine - 1) > len(noteslist):
+          repeatLaterArr[i] = noteslist[startInd+i],lengthslist[startInd+i]
+        else:
+          repeatLaterArr[i] = noteslist[:-i],lengthslist[:-i]
 
+        # repeatLaterArr[i,1] = lengthslist[startInd:startInd+lengthOfLine]
+      # repeatLaterArr = [noteslist[startInd:startInd+lengthOfLine], lengthslist[startInd:startInd+lengthOfLine]]
+
+
+  print("repeatlaterarr:",repeatLaterArr)
+  # we need repeatLaterArr to be in format curPitch, curLength
 
   outputMidiArr = np.zeros((1,4))
   print("beginnign input:", curMidiArr)
@@ -182,8 +193,11 @@ def processMidi(curMidiArr):
 
   # currently thinking of ways to make the output not dependent on length of input. 
   # we could just make "row" into "rows" and then trigger adding more rows if the rules apply there...
+  # ok success. next step is to make rules as to when more rows should be added.
+  # add the repeat later array when a note is long
+
   for noteInd in curMidiArr:
-    moreRows = np.zeros([4])
+    moreRows = np.zeros([1,4])
     retrogradeInd = counter
     if experimentalRetrograde:
       print("we are in experimental retrograde")
@@ -209,6 +223,8 @@ def processMidi(curMidiArr):
       # this is inverting time and frequency
       origPitch = np.abs(origPitch + (timeJump/15))
       curLength = np.abs(curLength +(jump * 5))
+      if curLength < 100:
+        curLength = curLength * 3
 
     # transpose notes that are above and below the regular range of a piano
     while origPitch > 100:
@@ -232,11 +248,24 @@ def processMidi(curMidiArr):
           transposeValue = random.random()
       else:
         transposeFlag = False
+
     else:
       # send no tremolo if length is shorter than 1000 ms
       curTremoloState = False
       # sendTremolo(curTremoloState)
     
+    if curLength > 200:
+        # add the repeatlaterar
+        for i in range(0,len(repeatLaterArr)):
+          print(i)
+          print(repeatLaterArr)
+          print(repeatLaterArr[i,0])
+          newRow = np.array([repeatLaterArr[i,0],repeatLaterArr[i,1],0,0]).reshape(1,4)
+          print(np.shape(newRow))
+          print(np.shape(moreRows))
+          moreRows = np.append(moreRows, newRow, axis=0)
+          print("morerows:",moreRows)
+
     if transposeFlag:
       # choose a random way to transpose based on transposeValue
       curTransposeStep = transposeOptions[int(np.floor(transposeValue/randStep))]
@@ -289,11 +318,15 @@ def processMidi(curMidiArr):
     row = np.array([[int(curPitch), curLength, int(curTremoloState), int(curChordState)]])
     print(row)
     print([moreRows])
-    rows = np.append(row, [moreRows], axis = 0)
+    print(np.size(row))
+    print(np.size(moreRows))
+    rows = np.append(row, moreRows, axis = 0)
     print(rows)
     outputMidiArr = np.append(outputMidiArr, rows, axis=0)
     # print("output at end of loop:", outputMidiArr)
     counter = counter + 1
+
+# next step: figure out why there are so many morerows with 0s all around - the memory doesnt have anything
 
   # remove rows with zero length since moreRows may be empty and the first row is empty
   outputMidiArr = np.delete(outputMidiArr, np.where((outputMidiArr[:,1] == 0))[0], axis=0)
@@ -341,7 +374,7 @@ def populateArr(fake, pitch, length):
   if playbackType == 1:
     print("playback type is 1")
     randomInterjectionChance = random.random()
-    if randomInterjectionChance <= 0.05:
+    if randomInterjectionChance <= 0.12:
       print("randomly interrupting now!")
       bangplay(0,0)
 
