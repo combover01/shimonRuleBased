@@ -183,7 +183,7 @@ def processMidi(curMidiArr):
         if (startInd + lengthOfLine - 1) < len(noteslist):
           repeatLaterArr[i] = noteslist[startInd+i],lengthslist[startInd+i]
         else:
-          repeatLaterArr[i] = noteslist[:-i],lengthslist[:-i]
+          repeatLaterArr[i] = noteslist[len(noteslist)-1-i],lengthslist[len(lengthslist)-1-i]
 
         # repeatLaterArr[i,1] = lengthslist[startInd:startInd+lengthOfLine]
       # repeatLaterArr = [noteslist[startInd:startInd+lengthOfLine], lengthslist[startInd:startInd+lengthOfLine]]
