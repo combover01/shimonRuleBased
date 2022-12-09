@@ -127,6 +127,7 @@ def processMidi(curMidiArr):
   numOfChordsLeft = 0
   majorChordsFlag = False
   minorChordsFlag = False
+  volumeTransposedJump = 0
 
   # chord state: 0 for no chord, 1 for major, 2 for minor
   curChordState = 0
@@ -169,7 +170,10 @@ def processMidi(curMidiArr):
   noteslist = curMidiArr[:,0]
   lengthslist = curMidiArr[:,1]
   volslist = curMidiArr[:,2]
-  peakVol = volslist.max()
+  if len(volslist) > 0:
+    peakVol = volslist.max()
+  else:
+    peakVol = 0
   print("volslist",volslist)
   print("peakvol",peakVol)
   repeatCounter = 0
@@ -293,10 +297,12 @@ def processMidi(curMidiArr):
     else:
       curPitch = origPitch
 
+      
+
     # QUANTIZING SETTINGS!
     if quantizeFlag:
       # (closest to 125 ms multiples)
-      curMs = bpmToMs(masterBpm) * 2
+      curMs = bpmToMs(masterBpm) 
 
       rounded = curMs * round(curLength / curMs)
       curLength = rounded
@@ -313,6 +319,20 @@ def processMidi(curMidiArr):
       chance = random.random()
       numOfChordsLeft = np.ceil(chance/0.2)
       minorChordsFlag = True
+    else:
+      if curVol < (peakVol/2):
+        if volumeTransposedJump == 0:
+          volumeTransposedJump = np.round(7*(random.random()))
+        else:
+          newRand = random.random()
+          # 25% chance to change transposition
+          if newRand < 0.25:
+            volumeTransposedJump = np.round(7*(random.random()))
+          elif newRand < 0.4:
+            volumeTransposedJump = 0
+
+        curPitch = curPitch + volumeTransposedJump
+
 
     if majorChordsFlag:
       print("playing a major chord")
@@ -328,6 +348,13 @@ def processMidi(curMidiArr):
         minorChordsFlag = False
     else:
       curChordState = 0
+
+    while curPitch > 90:
+      curPitch = curPitch - 12
+      print("transposed down to:", curPitch)
+    while curPitch < 30:
+      curPitch = curPitch + 12
+      print("transposed up to:", curPitch)
 
 
 # next friday with a saxophone, interaction (can be just repeating if needed)
@@ -362,8 +389,11 @@ def playMidi(outputMidiArr):
   global playing
   global prevTimeStamp
   global curMidiArr
+  if len(outputMidiArr) > 0:
+    client.send_message("/listenmode", 0)
 
   for i in range(len(outputMidiArr)):
+
     print("playingmidi")
     print(outputMidiArr[i])
     client.send_message("/max", [outputMidiArr[i][0], outputMidiArr[i][1]])
@@ -444,9 +474,10 @@ def startProcessing(fake, timeSilent, playbackType):
   if playbackType == 0:
     # print("silence for more than 2 secs")
     if timeSilent > 2000 and not playing:
-      client.send_message("/listenmode", 0)
       playing = True    
       outputMidiArr = processMidi(curMidiArr)
+      # client.send_message("/listenmode", 0)
+
       playMidi(outputMidiArr)
 
     # check if silence happens for more than 2 secs and if it does then start playback
@@ -454,12 +485,12 @@ def startProcessing(fake, timeSilent, playbackType):
     # print("silence for more than 2 secs or random")
     randomInterjectionChance = random.random()
     if randomInterjectionChance < 0.01:
-      client.send_message("/listenmode", 0)
+      # client.send_message("/listenmode", 0)
       playing = True    
       outputMidiArr = processMidi(curMidiArr)
       playMidi(outputMidiArr)
     elif timeSilent > 2000 and not playing:
-      client.send_message("/listenmode", 0)
+      # client.send_message("/listenmode", 0)
       playing = True    
       outputMidiArr = processMidi(curMidiArr)
       playMidi(outputMidiArr)
@@ -488,7 +519,7 @@ def setPlaybackType(fake,typeNum):
 def bangplay(fake, bang):
   global playing
   playing = True
-  client.send_message("/listenmode", 0)    
+  # client.send_message("/listenmode", 0)    
   outputMidiArr = processMidi(curMidiArr)
   playMidi(outputMidiArr)
 
