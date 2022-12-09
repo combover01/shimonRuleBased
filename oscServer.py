@@ -14,7 +14,7 @@ plt.switch_backend('Agg')
 parser = argparse.ArgumentParser()
 labIp = "143.215.124.213"
 homeIp = "192.168.0.108"
-curIp = "143.215.113.198"
+curIp = "143.215.112.90"
 
 parser.add_argument("--ip", default=curIp, help="The ip to listen on")
 parser.add_argument("--portServer", type=int, default=5004, help="The port to listen for max on")
@@ -33,6 +33,7 @@ prevTimeStamp = time.time()
 experimentalInverting = False
 experimentalRetrograde = True
 quantizeFlag = True
+masterBpm = 120
 
 # source for resettable timer: https://code.activestate.com/recipes/577407-resettable-timer-class-a-little-enhancement-from-p/
 def TimerReset(*args, **kwargs):
@@ -77,6 +78,9 @@ class _TimerReset(Thread):
         self.finished.set()
         self.finished.clear()
 
+def bpmToMs(bpm):
+  ms = 60000/bpm
+  return ms
 
 def pitch_changer(origPitch):
   changedPitch = origPitch
@@ -108,6 +112,7 @@ def pitch_changer(origPitch):
 def processMidi(curMidiArr):
   print("in processMIDI")
   global quantizeFlag
+  global masterBpm
   counter = 0
   transposeFlag = False
   curTremoloState = False
@@ -175,7 +180,7 @@ def processMidi(curMidiArr):
       print(startInd)
 
       for i in range(0,lengthOfLine):
-        if not (startInd + lengthOfLine - 1) > len(noteslist):
+        if (startInd + lengthOfLine - 1) < len(noteslist):
           repeatLaterArr[i] = noteslist[startInd+i],lengthslist[startInd+i]
         else:
           repeatLaterArr[i] = noteslist[:-i],lengthslist[:-i]
@@ -254,6 +259,7 @@ def processMidi(curMidiArr):
       curTremoloState = False
       # sendTremolo(curTremoloState)
     
+    # CHANGE because being over a certain length is not good. we need to make the interjections musical...
     if curLength > 200:
         # add the repeatlaterar
         for i in range(0,len(repeatLaterArr)):
@@ -276,8 +282,11 @@ def processMidi(curMidiArr):
     # QUANTIZING SETTINGS!
     if quantizeFlag:
       # (closest to 125 ms multiples)
-      rounded = 125 * round(curLength / 125)
+      curMs = bpmToMs(masterBpm) * 2
+
+      rounded = curMs * round(curLength / curMs)
       curLength = rounded
+      print("curms:", curMs)
       print("rounded:", rounded)
 
     if abs(jump) == 4:
@@ -374,7 +383,7 @@ def populateArr(fake, pitch, length):
   if playbackType == 1:
     print("playback type is 1")
     randomInterjectionChance = random.random()
-    if randomInterjectionChance <= 0.12:
+    if randomInterjectionChance <= 0.09:
       print("randomly interrupting now!")
       bangplay(0,0)
 
@@ -492,6 +501,9 @@ def turnOnQuantizer(fake, flag):
     quantizeFlag = True
   else:
     quantizeFlag = False
+def setBpm(fake, bpm):
+  global masterBpm
+  masterBpm = bpm
 
 def newTimer():
   global t 
@@ -512,6 +524,7 @@ if __name__ == "__main__":
   dispatcher.map("/playMIDI", bangplay)
   dispatcher.map("/experimental", turnOnExperimentalProcessing)
   dispatcher.map("/quantize", turnOnQuantizer)
+  dispatcher.map("/bpm", setBpm)
 
   # dispatcher.map("playback")
   # dispatcher.map("/playbacktype", startProcessing)
