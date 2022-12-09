@@ -22,7 +22,7 @@ parser.add_argument("--portClient", type=int, default=7980, help="The port to se
 args = parser.parse_args()
 
 client = udp_client.SimpleUDPClient(args.ip, args.portClient)
-curMidiArr = np.array([[0,0]])
+curMidiArr = np.array([[0,0,0]])
 curNoteInd = 0
 playing = False
 playbackType = 1
@@ -34,6 +34,7 @@ experimentalInverting = False
 experimentalRetrograde = True
 quantizeFlag = True
 masterBpm = 120
+curVolume = 10
 
 # source for resettable timer: https://code.activestate.com/recipes/577407-resettable-timer-class-a-little-enhancement-from-p/
 def TimerReset(*args, **kwargs):
@@ -167,6 +168,11 @@ def processMidi(curMidiArr):
   repeatLaterArr = np.zeros([7, 2])
   noteslist = curMidiArr[:,0]
   lengthslist = curMidiArr[:,1]
+  volslist = curMidiArr[:,2]
+  peakVol = volslist.max()
+  print("volslist",volslist)
+  print("peakvol",peakVol)
+  repeatCounter = 0
 
   if len(noteslist) > 0: 
     peakInd = np.argmax(noteslist)
@@ -211,6 +217,8 @@ def processMidi(curMidiArr):
 
     origPitch = noteInd[0] 
     curLength = noteInd[1]
+    curVol = noteInd[2]
+    print("curvol:",curVol)
     # print("origPitch: ", origPitch)
 
     if experimentalRetrograde:
@@ -260,7 +268,10 @@ def processMidi(curMidiArr):
       # sendTremolo(curTremoloState)
     
     # CHANGE because being over a certain length is not good. we need to make the interjections musical...
-    if curLength > 200:
+    # if the volume is over half the peak volume and it hasnt played 3 times in a row yet, and it passes a 75% chance, then play
+    volumeChance = random.random()
+    if curVol > peakVol/2 and volumeChance > 0.25 and repeatCounter < 3:
+
         # add the repeatlaterar
         for i in range(0,len(repeatLaterArr)):
           print(i)
@@ -271,6 +282,9 @@ def processMidi(curMidiArr):
           print(np.shape(moreRows))
           moreRows = np.append(moreRows, newRow, axis=0)
           print("morerows:",moreRows)
+
+        repeatCounter = repeatCounter + 1
+        
 
     if transposeFlag:
       # choose a random way to transpose based on transposeValue
@@ -373,8 +387,9 @@ def populateArr(fake, pitch, length):
   global curMidiArr
   global prevTimeStamp
   global playbackType
+  global curVolume
 
-  curMidiArr = np.append(curMidiArr, [[pitch, length]], axis = 0)
+  curMidiArr = np.append(curMidiArr, [[pitch, length, curVolume]], axis = 0)
   # print("curMidiArr was appended to:")
   # print(curMidiArr)
   curNoteInd = curNoteInd + 1
@@ -504,6 +519,9 @@ def turnOnQuantizer(fake, flag):
 def setBpm(fake, bpm):
   global masterBpm
   masterBpm = bpm
+def setVolume(fake,volume):
+  global curVolume
+  curVolume = volume
 
 def newTimer():
   global t 
@@ -525,6 +543,7 @@ if __name__ == "__main__":
   dispatcher.map("/experimental", turnOnExperimentalProcessing)
   dispatcher.map("/quantize", turnOnQuantizer)
   dispatcher.map("/bpm", setBpm)
+  dispatcher.map("/curVol", setVolume)
 
   # dispatcher.map("playback")
   # dispatcher.map("/playbacktype", startProcessing)
